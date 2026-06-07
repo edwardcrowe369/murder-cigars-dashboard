@@ -2,9 +2,9 @@ import { getStore } from "@netlify/blobs";
 
 let boardCache = null;
 
-async function getBlobs() {
+function getBlobs() {
   try {
-    return getStore("murder-board");
+    return getStore({ name: "murder-board", consistency: "strong" });
   } catch (err) {
     console.error("Blobs init failed:", err.message);
     return null;
@@ -65,6 +65,25 @@ function json(obj, status = 200) {
   });
 }
 
+async function loadBoard(store) {
+  let board = await readBoard(store);
+  if (!board) board = boardCache;
+  if (!board) {
+    board = { rev: 0, posts: [], updatedAt: new Date().toISOString() };
+    if (store) await writeBoard(store, board);
+  }
+  boardCache = board;
+  return board;
+}
+
+async function saveBoard(store, board) {
+  board.rev++;
+  board.updatedAt = new Date().toISOString();
+  boardCache = board;
+  if (store) await writeBoard(store, board);
+  return board;
+}
+
 export default async function handler(req, context) {
   const method = req.method || "GET";
   let rev = -1;
@@ -78,14 +97,8 @@ export default async function handler(req, context) {
   }
 
   try {
-    const store = await getBlobs();
-    let board = boardCache || (await readBoard(store));
-
-    if (!board) {
-      board = { rev: 0, posts: [], updatedAt: new Date().toISOString() };
-      boardCache = board;
-      if (store) await writeBoard(store, board);
-    }
+    const store = getBlobs();
+    let board = await loadBoard(store);
 
     if (method === "GET") {
       if (rev === board.rev) {
@@ -106,10 +119,7 @@ export default async function handler(req, context) {
 
       if (act === "seed" && board.posts.length === 0 && seedPosts) {
         board.posts = seedPosts.map(cleanPost).slice(0, 300);
-        board.rev++;
-        board.updatedAt = new Date().toISOString();
-        boardCache = board;
-        if (store) await writeBoard(store, board);
+        board = await saveBoard(store, board);
         return json({ rev: board.rev, posts: board.posts });
       }
 
@@ -120,10 +130,7 @@ export default async function handler(req, context) {
           board.posts.unshift(clean);
           if (board.posts.length > 300) board.posts.pop();
         }
-        board.rev++;
-        board.updatedAt = new Date().toISOString();
-        boardCache = board;
-        if (store) await writeBoard(store, board);
+        board = await saveBoard(store, board);
         return json({ rev: board.rev, posts: board.posts });
       }
 
@@ -136,19 +143,13 @@ export default async function handler(req, context) {
           board.posts.unshift(clean);
           if (board.posts.length > 300) board.posts.pop();
         }
-        board.rev++;
-        board.updatedAt = new Date().toISOString();
-        boardCache = board;
-        if (store) await writeBoard(store, board);
+        board = await saveBoard(store, board);
         return json({ rev: board.rev, posts: board.posts });
       }
 
       if (act === "delete" && postId) {
         board.posts = board.posts.filter((p) => String(p.id) !== String(postId));
-        board.rev++;
-        board.updatedAt = new Date().toISOString();
-        boardCache = board;
-        if (store) await writeBoard(store, board);
+        board = await saveBoard(store, board);
         return json({ rev: board.rev, posts: board.posts });
       }
 
