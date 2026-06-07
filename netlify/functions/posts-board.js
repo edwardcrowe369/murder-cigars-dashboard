@@ -33,29 +33,28 @@ async function writeBoard(store, data) {
   }
 }
 
-function parsePost(p) {
+function cleanPost(p) {
   return {
     id: String(p.id || ""),
+    images: Array.isArray(p.images) ? p.images.slice(0, 20) : [],
+    frame: p.frame || "feed",
+    caption: (p.caption || "").substring(0, 5000),
+    song: p.song || "",
+    songArt: p.songArt || "",
+    songUrl: p.songUrl || "",
+    songPreview: p.songPreview || "",
     platform: p.platform || "",
-    caption: p.caption || "",
-    time: p.time || "",
-    date: p.date || "",
-    tags: Array.isArray(p.tags) ? p.tags : [],
     status: p.status || "draft",
-    library: Array.isArray(p.library) ? p.library.slice() : [],
+    day: p.day || "",
+    time: p.time || "",
     reviewId: p.reviewId || "",
     reviewUrl: p.reviewUrl || "",
-    reviewNotes: p.reviewNotes || "",
-    reviewStatus: p.reviewStatus || "pending",
+    reviewDecision: p.reviewDecision || null,
+    reviewComment: p.reviewComment || "",
+    reviewer: p.reviewer || "",
+    reviewedAt: p.reviewedAt || null,
+    createdAt: p.createdAt || Date.now(),
   };
-}
-
-function cleanPost(p) {
-  const out = parsePost(p);
-  out.caption = (out.caption || "").substring(0, 5000);
-  out.tags = out.tags.slice(0, 20);
-  out.library = out.library.slice(0, 50);
-  return out;
 }
 
 function json(obj, status = 200) {
