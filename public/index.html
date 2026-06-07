@@ -882,7 +882,7 @@ function renderBoard(){
   '</div>';
   if(list.length===0){ body.innerHTML=tools+'<div class="empty">No posts in this view.</div>'; return; }
   body.innerHTML = tools+'<div class="grid">'+list.map(p=>{
-    const s = STATUS[p.status], f = FRAMES[p.frame];
+    const s = STATUS[p.status]||STATUS.draft, f = FRAMES[p.frame]||FRAMES.feed;
     const imgs = p.images && p.images.length ? p.images : [];
     const idx = Math.min(slide[p.id]||0, Math.max(0,imgs.length-1));
     slide[p.id] = idx;
