@@ -1,16 +1,12 @@
 import { getStore } from "@netlify/blobs";
 
 let boardCache = null;
-let blobsWorking = false;
 
 async function getBlobs() {
   try {
-    const store = getStore("murder-board");
-    blobsWorking = true;
-    return store;
+    return getStore("murder-board");
   } catch (err) {
     console.error("Blobs init failed:", err.message);
-    blobsWorking = false;
     return null;
   }
 }
@@ -62,12 +58,20 @@ function cleanPost(p) {
   return out;
 }
 
-export default async function handler(event, context) {
-  const method = event.httpMethod || "GET";
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export default async function handler(req, context) {
+  const method = req.method || "GET";
   let rev = -1;
   try {
-    const qs = (event.queryStringParameters) || {};
-    rev = parseInt(qs.rev != null ? qs.rev : "-1", 10);
+    const url = new URL(req.url);
+    const r = url.searchParams.get("rev");
+    rev = parseInt(r != null ? r : "-1", 10);
     if (Number.isNaN(rev)) rev = -1;
   } catch (e) {
     rev = -1;
@@ -85,23 +89,17 @@ export default async function handler(event, context) {
 
     if (method === "GET") {
       if (rev === board.rev) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ rev: board.rev, changed: false }),
-        };
+        return json({ rev: board.rev, changed: false });
       }
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ rev: board.rev, posts: board.posts }),
-      };
+      return json({ rev: board.rev, posts: board.posts });
     }
 
     if (method === "POST") {
       let body = {};
       try {
-        body = JSON.parse(event.body || "{}");
+        body = await req.json();
       } catch (e) {
-        return { statusCode: 400, body: "Invalid JSON" };
+        return json({ error: "Invalid JSON" }, 400);
       }
 
       const { action: act, post, postId, posts: seedPosts } = body;
@@ -112,10 +110,7 @@ export default async function handler(event, context) {
         board.updatedAt = new Date().toISOString();
         boardCache = board;
         if (store) await writeBoard(store, board);
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ rev: board.rev, posts: board.posts }),
-        };
+        return json({ rev: board.rev, posts: board.posts });
       }
 
       if (act === "create" && post) {
@@ -129,10 +124,7 @@ export default async function handler(event, context) {
         board.updatedAt = new Date().toISOString();
         boardCache = board;
         if (store) await writeBoard(store, board);
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ rev: board.rev, posts: board.posts }),
-        };
+        return json({ rev: board.rev, posts: board.posts });
       }
 
       if (act === "update" && post && post.id) {
@@ -148,10 +140,7 @@ export default async function handler(event, context) {
         board.updatedAt = new Date().toISOString();
         boardCache = board;
         if (store) await writeBoard(store, board);
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ rev: board.rev, posts: board.posts }),
-        };
+        return json({ rev: board.rev, posts: board.posts });
       }
 
       if (act === "delete" && postId) {
@@ -160,21 +149,15 @@ export default async function handler(event, context) {
         board.updatedAt = new Date().toISOString();
         boardCache = board;
         if (store) await writeBoard(store, board);
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ rev: board.rev, posts: board.posts }),
-        };
+        return json({ rev: board.rev, posts: board.posts });
       }
 
-      return { statusCode: 400, body: "Unknown action" };
+      return json({ error: "Unknown action" }, 400);
     }
 
-    return { statusCode: 405, body: "Method not allowed" };
+    return json({ error: "Method not allowed" }, 405);
   } catch (err) {
     console.error("Handler error:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
-    };
+    return json({ error: err.message }, 500);
   }
 }
