@@ -123,7 +123,8 @@ export default async function handler(req, context) {
         return json({ error: "Invalid JSON" }, 400);
       }
 
-      const { action: act, post, postId, posts: seedPosts } = body;
+      const { action: act, post, posts: seedPosts } = body;
+      const postId = body.postId || body.id;
 
       if (act === "seed" && board.posts.length === 0 && seedPosts) {
         board.posts = seedPosts.map(cleanPost).slice(0, 300);
