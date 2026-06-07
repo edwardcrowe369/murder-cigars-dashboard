@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Murder Cigars — Post Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0807; --panel:#141110; --panelAlt:#1b1715;
+    --line:#2a2421; --lineSoft:#221e1b;
+    --text:#ffffff; --dim:#f0edea; --faint:#cfcac5;
+    --gold:#c41f1c; --goldDim:#7a1410; --signature:#c9a06a;
+    --green:#7aa06a; --red:#c41f1c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);min-height:100vh;}
+  body{color:var(--text);font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .serif{font-family:Georgia,'Times New Roman',serif;}
+  .wrap{max-width:560px;margin:0 auto;padding:26px 18px 60px;}
+  .brand{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .word{font-family:'Pirata One',serif;color:var(--gold);font-size:42px;line-height:.9;letter-spacing:.5px;}
+  .sub{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);border-left:1px solid var(--line);padding-left:12px;}
+  .lead{color:var(--faint);font-size:13px;line-height:1.5;margin:14px 0 22px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .imgWrap{position:relative;background:#000;}
+  .imgWrap img{width:100%;display:block;object-fit:cover;}
+  .tag{position:absolute;top:12px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:5px 9px;border-radius:5px;font-weight:700;}
+  .tagFrame{left:12px;background:rgba(0,0,0,.6);color:var(--faint);border:1px solid var(--line);}
+  .nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid var(--line);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .nav.prev{left:10px;} .nav.next{right:10px;}
+  .count{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.6);color:var(--faint);border:1px solid var(--line);font-size:11px;padding:5px 9px;border-radius:20px;display:flex;align-items:center;gap:5px;}
+  .dots{position:absolute;bottom:12px;left:0;right:0;display:flex;gap:6px;justify-content:center;}
+  .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35);}
+  .dots i.on{background:var(--gold);}
+  .body{padding:18px;}
+  .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .meta b{color:var(--dim);font-weight:600;}
+  .cap{font-size:15px;line-height:1.55;color:var(--dim);white-space:pre-wrap;margin:0 0 14px;}
+  .song{display:flex;align-items:center;gap:10px;background:var(--panelAlt);border:1px solid var(--lineSoft);border-radius:10px;padding:10px 12px;}
+  .song img{width:40px;height:40px;border-radius:6px;object-fit:cover;}
+  .song .st{flex:1;min-width:0;}
+  .song .st .n{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .song .st .l{font-size:11px;color:var(--faint);}
+  .play{width:38px;height:38px;border-radius:50%;border:1px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .panel{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;}
+  .panel h2{margin:0 0 4px;font-size:16px;letter-spacing:.02em;}
+  .panel .hint{font-size:12px;color:var(--faint);margin:0 0 16px;}
+  label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:0 0 6px;}
+  input,textarea{width:100%;background:#000;border:1px solid var(--line);color:#fff;border-radius:9px;padding:12px;font-size:14px;font-family:inherit;}
+  input:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(196,31,28,.25);}
+  textarea{min-height:90px;resize:vertical;margin-bottom:18px;}
+  .field{margin-bottom:16px;}
+  .btnRow{display:flex;gap:12px;}
+  .btn{flex:1;padding:15px;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:.03em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid;}
+  .btn.approve{background:#16240f;border-color:#3a5a2c;color:#bfe3a8;}
+  .btn.approve:hover{background:#1d3014;}
+  .btn.deny{background:#1f1310;border-color:#5a2c28;color:#f0b3ac;}
+  .btn.deny:hover{background:#2a1814;}
+  .btn[disabled]{opacity:.5;cursor:default;}
+  .state{text-align:center;padding:40px 20px;color:var(--faint);}
+  .banner{border-radius:12px;padding:16px;margin-bottom:18px;font-size:14px;line-height:1.5;}
+  .banner.ok{background:#16240f;border:1px solid #3a5a2c;color:#cfe9bd;}
+  .banner.no{background:#1f1310;border:1px solid #5a2c28;color:#f2c2bb;}
+  .foot{text-align:center;margin-top:26px;font-size:11px;color:#6b6259;letter-spacing:.05em;}
+  svg{stroke:currentColor;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="word">MURDER</span><span class="sub">Post Review</span></div>
+  <p class="lead">Review the post below, then approve it or request changes. You can leave a comment for the team.</p>
+  <div id="root"><div class="state">Loading the post…</div></div>
+  <div class="foot">Murder Cigars · content review</div>
+</div>
+
+<script>
+const API = "/.netlify/functions/posts";
+const FRAMES = { feed:{label:"Feed 1:1",ratio:"1 / 1"}, portrait:{label:"Portrait 4:5",ratio:"4 / 5"}, story:{label:"Story 9:16",ratio:"9 / 16"} };
+const P = {
+  play:'<polygon points="6 4 20 12 6 20 6 4"></polygon>',
+  pause:'<line x1="8" y1="4" x2="8" y2="20"></line><line x1="16" y1="4" x2="16" y2="20"></line>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  x:'<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+  layers:'<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
+  chevL:'<path d="M15 18l-6-6 6-6"/>', chevR:'<path d="M9 18l6-6-6-6"/>',
+  music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'
+};
+function ic(n,s){s=s||16;return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+P[n]+'</svg>';}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function qp(k){return new URLSearchParams(location.search).get(k);}
+
+const root = document.getElementById("root");
+const id = (qp("id")||"").trim();
+let rec = null, idx = 0, audio = null, submitting = false;
+
+if(!id){ root.innerHTML = '<div class="state">This link is missing its post id.</div>'; }
+else load();
+
+async function load(){
+  try{
+    const r = await fetch(API+"?id="+encodeURIComponent(id));
+    if(r.status===404){ root.innerHTML = '<div class="state">This post couldn\'t be found. The link may be old or mistyped.</div>'; return; }
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    rec = await r.json();
+    render();
+  }catch(e){
+    root.innerHTML = '<div class="state">Couldn\'t load this post. Please refresh, or ask for a fresh link.<br><br><small>'+esc(e.message)+'</small></div>';
+  }
+}
+
+function render(){
+  const p = rec.post||{};
+  const imgs = (p.images||[]).filter(Boolean);
+  const f = FRAMES[p.frame]||FRAMES.feed;
+  idx = Math.min(idx, Math.max(0,imgs.length-1));
+
+  let media = '<div class="imgWrap" style="aspect-ratio:'+f.ratio+'">';
+  if(imgs.length){ media += '<img id="mImg" src="'+imgs[idx]+'">'; }
+  media += '<span class="tag tagFrame">'+f.label+'</span>';
+  if(imgs.length>1){
+    media += '<button class="nav prev" id="navPrev">'+ic("chevL",18)+'</button>'+
+             '<button class="nav next" id="navNext">'+ic("chevR",18)+'</button>'+
+             '<span class="count">'+ic("layers",11)+'<span id="cNum">'+(idx+1)+'</span>/'+imgs.length+'</span>'+
+             '<div class="dots">'+imgs.map((_,d)=>'<i class="'+(d===idx?"on":"")+'"></i>').join("")+'</div>';
+  }
+  media += '</div>';
+
+  const sched = p.day ? (p.day+' · '+p.time) : (p.time||'—');
+  let song = '';
+  if(p.song){
+    const art = p.songArt ? '<img src="'+esc(p.songArt)+'">' : '<div class="play" style="border:none;color:var(--faint)">'+ic("music",16)+'</div>';
+    const play = p.songPreview ? '<button class="play" id="songPlay">'+ic("play",16)+'</button>' : '';
+    song = '<div class="song" style="margin-top:14px">'+art+'<div class="st"><div class="n">'+esc(p.song)+'</div>'+(p.songUrl?'<a class="l" href="'+esc(p.songUrl)+'" target="_blank" rel="noopener">Open in Apple Music</a>':'<div class="l">Song choice</div>')+'</div>'+play+'</div>';
+  }
+
+  let already = '';
+  if(rec.decision){
+    const when = rec.reviewedAt ? new Date(rec.reviewedAt).toLocaleString() : '';
+    already = '<div class="banner '+(rec.decision==="approved"?"ok":"no")+'">'+
+      (rec.decision==="approved"?"You approved this":"You requested changes")+
+      (rec.reviewer?' · '+esc(rec.reviewer):'')+
+      (when?'<br><small>'+esc(when)+'</small>':'')+
+      (rec.comment?'<br><br>"'+esc(rec.comment)+'"':'')+
+      '<br><br><small>You can change your response below.</small></div>';
+  }
+
+  root.innerHTML =
+    '<div class="card">'+media+
+      '<div class="body">'+
+        '<div class="meta"><b>'+esc(p.platform||'')+'</b><span>'+esc(sched)+'</span></div>'+
+        '<p class="cap">'+esc(p.caption)+'</p>'+ song +
+      '</div>'+
+    '</div>'+
+    '<div class="panel">'+ already +
+      '<h2>Your decision</h2>'+
+      '<p class="hint">Approve to greenlight, or request changes with a note.</p>'+
+      '<div class="field"><label>Your name (optional)</label><input id="rvName" placeholder="e.g. Edward" value="'+esc(rec.reviewer||'')+'"></div>'+
+      '<div class="field"><label>Comment (optional)</label><textarea id="rvComment" placeholder="Anything the team should know…">'+esc(rec.comment||'')+'</textarea></div>'+
+      '<div class="btnRow">'+
+        '<button class="btn approve" id="btnApprove">'+ic("check",16)+'Approve</button>'+
+        '<button class="btn deny" id="btnDeny">'+ic("x",16)+'Request changes</button>'+
+      '</div>'+
+    '</div>';
+
+  if(imgs.length>1){
+    document.getElementById("navPrev").onclick = ()=>{ idx=(idx-1+imgs.length)%imgs.length; swap(imgs); };
+    document.getElementById("navNext").onclick = ()=>{ idx=(idx+1)%imgs.length; swap(imgs); };
+  }
+  const sp = document.getElementById("songPlay");
+  if(sp) sp.onclick = ()=>togglePreview(p.songPreview, sp);
+  document.getElementById("btnApprove").onclick = ()=>submit("approved");
+  document.getElementById("btnDeny").onclick = ()=>submit("denied");
+}
+
+function swap(imgs){
+  document.getElementById("mImg").src = imgs[idx];
+  const cn=document.getElementById("cNum"); if(cn) cn.textContent=(idx+1);
+  document.querySelectorAll(".dots i").forEach((d,i)=>d.classList.toggle("on",i===idx));
+}
+
+function togglePreview(src, btn){
+  if(audio && !audio.paused){ audio.pause(); btn.innerHTML=ic("play",16); return; }
+  if(!audio){ audio=new Audio(); audio.onended=()=>{ btn.innerHTML=ic("play",16); }; }
+  audio.src=src; audio.play().then(()=>btn.innerHTML=ic("pause",16)).catch(()=>{});
+}
+
+async function submit(decision){
+  if(submitting) return;
+  submitting = true;
+  if(audio) audio.pause();
+  const a=document.getElementById("btnApprove"), d=document.getElementById("btnDeny");
+  if(a) a.disabled=true; if(d) d.disabled=true;
+  const reviewer=(document.getElementById("rvName")||{}).value||"";
+  const comment=(document.getElementById("rvComment")||{}).value||"";
+  try{
+    const r = await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"decision",id,decision,reviewer,comment})});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    root.innerHTML = '<div class="banner '+(decision==="approved"?"ok":"no")+'" style="text-align:center;padding:32px 20px">'+
+      (decision==="approved"?ic("check",26):ic("x",26))+
+      '<div style="font-size:18px;font-weight:700;margin-top:10px">'+(decision==="approved"?"Approved":"Changes requested")+'</div>'+
+      '<div style="margin-top:8px;font-size:13px">Your response was sent to the team. Thank you.</div>'+
+      '</div>';
+  }catch(e){
+    submitting=false;
+    if(a) a.disabled=false; if(d) d.disabled=false;
+    alert("Couldn't send your response. Please try again.\n"+e.message);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "murder-cigars-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Murder Cigars content dashboard + approval sharing",
+  "dependencies": {
+    "@netlify/blobs": "latest"
+  }
+}
