@@ -63,10 +63,15 @@ function cleanPost(p) {
 }
 
 export default async function handler(event, context) {
-  const url = new URL(event.rawUrl);
-  const method = event.httpMethod;
-  const action = url.searchParams.get("action") || "list";
-  const rev = parseInt(url.searchParams.get("rev") || "-1", 10);
+  const method = event.httpMethod || "GET";
+  let rev = -1;
+  try {
+    const qs = (event.queryStringParameters) || {};
+    rev = parseInt(qs.rev != null ? qs.rev : "-1", 10);
+    if (Number.isNaN(rev)) rev = -1;
+  } catch (e) {
+    rev = -1;
+  }
 
   try {
     const store = await getBlobs();
@@ -102,9 +107,7 @@ export default async function handler(event, context) {
       const { action: act, post, postId, posts: seedPosts } = body;
 
       if (act === "seed" && board.posts.length === 0 && seedPosts) {
-        board.posts = seedPosts
-          .map(cleanPost)
-          .slice(0, 300);
+        board.posts = seedPosts.map(cleanPost).slice(0, 300);
         board.rev++;
         board.updatedAt = new Date().toISOString();
         boardCache = board;
