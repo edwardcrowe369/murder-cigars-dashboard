@@ -64,13 +64,40 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: cors, body: "" };
 
   try {
-    connectLambda(event);
-    const store = getStore({ name: "murder-board", consistency: "strong" });
-    const load = async () => (await store.get(KEY, { type: "json" })) || emptyBoard();
+    try {
+      connectLambda(event);
+    } catch (e) {
+      console.error("connectLambda failed:", e);
+      return { statusCode: 503, headers: cors, body: JSON.stringify({ error: "Blobs not ready" }) };
+    }
+    
+    let store;
+    try {
+      store = getStore({ name: "murder-board", consistency: "strong" });
+    } catch (e) {
+      console.error("getStore failed:", e);
+      return { statusCode: 503, headers: cors, body: JSON.stringify({ error: "Store init failed" }) };
+    }
+    
+    const load = async () => {
+      try {
+        const doc = await store.get(KEY, { type: "json" });
+        return doc || emptyBoard();
+      } catch (e) {
+        console.error("store.get failed:", e);
+        throw new Error("Failed to load board");
+      }
+    };
+    
     const save = async (board) => {
-      board.updatedAt = Date.now();
-      await store.setJSON(KEY, board);
-      return board;
+      try {
+        board.updatedAt = Date.now();
+        await store.setJSON(KEY, board);
+        return board;
+      } catch (e) {
+        console.error("store.setJSON failed:", e);
+        throw new Error("Failed to save board");
+      }
     };
 
     if (event.httpMethod === "GET") {
@@ -103,7 +130,7 @@ exports.handler = async (event) => {
         const post = cleanPost(body.post);
         if (!post) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "bad post" }) };
         const board = await load();
-        board.posts = board.posts.filter((p) => p.id !== post.id); // dedupe by id
+        board.posts = board.posts.filter((p) => p.id !== post.id);
         board.posts.unshift(post);
         if (board.posts.length > MAX_POSTS) board.posts = board.posts.slice(0, MAX_POSTS);
         board.rev = (board.rev || 0) + 1;
@@ -117,7 +144,7 @@ exports.handler = async (event) => {
         const board = await load();
         const i = board.posts.findIndex((p) => p.id === post.id);
         if (i >= 0) board.posts[i] = post;
-        else board.posts.unshift(post); // arrived via update but not present yet
+        else board.posts.unshift(post);
         board.rev = (board.rev || 0) + 1;
         const next = await save(board);
         return { statusCode: 200, headers: cors, body: JSON.stringify({ rev: next.rev, posts: next.posts }) };
@@ -138,6 +165,7 @@ exports.handler = async (event) => {
 
     return { statusCode: 405, headers: cors, body: JSON.stringify({ error: "method not allowed" }) };
   } catch (e) {
+    console.error("Handler error:", e);
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: String((e && e.message) || e) }) };
   }
 };
