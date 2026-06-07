@@ -57,6 +57,13 @@ function cleanPost(p) {
   };
 }
 
+function cleanLib(it) {
+  return {
+    id: String(it.id || ""),
+    src: typeof it.src === "string" ? it.src : "",
+  };
+}
+
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -68,9 +75,11 @@ async function loadBoard(store) {
   let board = await readBoard(store);
   if (!board) board = boardCache;
   if (!board) {
-    board = { rev: 0, posts: [], updatedAt: new Date().toISOString() };
+    board = { rev: 0, posts: [], library: [], updatedAt: new Date().toISOString() };
     if (store) await writeBoard(store, board);
   }
+  if (!Array.isArray(board.posts)) board.posts = [];
+  if (!Array.isArray(board.library)) board.library = [];
   boardCache = board;
   return board;
 }
@@ -103,7 +112,7 @@ export default async function handler(req, context) {
       if (rev === board.rev) {
         return json({ rev: board.rev, changed: false });
       }
-      return json({ rev: board.rev, posts: board.posts });
+      return json({ rev: board.rev, posts: board.posts, library: board.library });
     }
 
     if (method === "POST") {
@@ -118,8 +127,11 @@ export default async function handler(req, context) {
 
       if (act === "seed" && board.posts.length === 0 && seedPosts) {
         board.posts = seedPosts.map(cleanPost).slice(0, 300);
+        if (Array.isArray(body.library)) {
+          board.library = body.library.map(cleanLib).filter((x) => x.id && x.src).slice(0, 200);
+        }
         board = await saveBoard(store, board);
-        return json({ rev: board.rev, posts: board.posts });
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
       }
 
       if (act === "create" && post) {
@@ -130,7 +142,7 @@ export default async function handler(req, context) {
           if (board.posts.length > 300) board.posts.pop();
         }
         board = await saveBoard(store, board);
-        return json({ rev: board.rev, posts: board.posts });
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
       }
 
       if (act === "update" && post && post.id) {
@@ -143,13 +155,34 @@ export default async function handler(req, context) {
           if (board.posts.length > 300) board.posts.pop();
         }
         board = await saveBoard(store, board);
-        return json({ rev: board.rev, posts: board.posts });
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
       }
 
       if (act === "delete" && postId) {
         board.posts = board.posts.filter((p) => String(p.id) !== String(postId));
         board = await saveBoard(store, board);
-        return json({ rev: board.rev, posts: board.posts });
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
+      }
+
+      if (act === "libAdd" && Array.isArray(body.items)) {
+        const cleaned = body.items.map(cleanLib).filter((x) => x.id && x.src);
+        const have = new Set(board.library.map((x) => String(x.id)));
+        for (const it of cleaned) {
+          if (!have.has(it.id)) {
+            board.library.unshift(it);
+            have.add(it.id);
+          }
+        }
+        if (board.library.length > 200) board.library = board.library.slice(0, 200);
+        board = await saveBoard(store, board);
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
+      }
+
+      if (act === "libDelete" && Array.isArray(body.ids)) {
+        const set = new Set(body.ids.map(String));
+        board.library = board.library.filter((x) => !set.has(String(x.id)));
+        board = await saveBoard(store, board);
+        return json({ rev: board.rev, posts: board.posts, library: board.library });
       }
 
       return json({ error: "Unknown action" }, 400);
