@@ -1,40 +1,65 @@
-// Netlify Function: /.netlify/functions/posts
-// Stores shared review posts in Netlify Blobs.
-//   POST {action:"share", post:{...}}              -> { id }
-//   GET  ?id=<id>                                  -> stored record
-//   POST {action:"decision", id, decision, comment, reviewer} -> { ok:true }
+import { getStore } from "@netlify/blobs";
+
+// Netlify Function (v2): /.netlify/functions/posts
+// Shared review/approval records, stored in Netlify Blobs.
+//   POST {action:"share", post:{...}}                          -> { id }
+//   GET  ?id=<id>                                              -> stored record
+//   POST {action:"decision", id, decision, comment, reviewer}  -> { ok:true }
 //
-// Requires @netlify/blobs (installed at build time on a Git-connected deploy).
+// Uses the v2 function format so Blobs context is provided automatically
+// (no connectLambda), matching the working posts-board function.
 
-const { connectLambda, getStore } = require("@netlify/blobs");
-
-const cors = {
+const HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Content-Type": "application/json",
 };
 
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), { status, headers: HEADERS });
+}
+
+function getBlobs() {
+  try {
+    return getStore({ name: "murder-posts", consistency: "strong" });
+  } catch (err) {
+    console.error("Blobs init failed:", err.message);
+    return null;
+  }
+}
+
 const rid = () =>
   Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
 
-exports.handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: cors, body: "" };
+export default async function handler(req) {
+  const method = req.method || "GET";
+  if (method === "OPTIONS") return new Response("", { status: 204, headers: HEADERS });
+
+  const store = getBlobs();
+  if (!store) return json({ error: "Store init failed" }, 503);
 
   try {
-    connectLambda(event);
-    const store = getStore({ name: "murder-posts", consistency: "strong" });
-
-    if (event.httpMethod === "GET") {
-      const id = ((event.queryStringParameters && event.queryStringParameters.id) || "").trim();
-      if (!id) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "missing id" }) };
+    if (method === "GET") {
+      let id = "";
+      try {
+        id = (new URL(req.url).searchParams.get("id") || "").trim();
+      } catch (e) {
+        id = "";
+      }
+      if (!id) return json({ error: "missing id" }, 400);
       const rec = await store.get(id, { type: "json" });
-      if (!rec) return { statusCode: 404, headers: cors, body: JSON.stringify({ error: "not found" }) };
-      return { statusCode: 200, headers: cors, body: JSON.stringify(rec) };
+      if (!rec) return json({ error: "not found" }, 404);
+      return json(rec);
     }
 
-    if (event.httpMethod === "POST") {
-      const body = JSON.parse(event.body || "{}");
+    if (method === "POST") {
+      let body = {};
+      try {
+        body = await req.json();
+      } catch (e) {
+        return json({ error: "Invalid JSON" }, 400);
+      }
 
       if (body.action === "share") {
         const p = body.post || {};
@@ -43,7 +68,7 @@ exports.handler = async (event) => {
           id,
           createdAt: Date.now(),
           post: {
-            images: Array.isArray(p.images) ? p.images : [],
+            images: Array.isArray(p.images) ? p.images.slice(0, 20) : [],
             caption: String(p.caption || ""),
             frame: p.frame || "feed",
             platform: String(p.platform || ""),
@@ -60,29 +85,35 @@ exports.handler = async (event) => {
           reviewedAt: null,
         };
         await store.setJSON(id, rec);
-        return { statusCode: 200, headers: cors, body: JSON.stringify({ id }) };
+        return json({ id });
       }
 
       if (body.action === "decision") {
         const id = String(body.id || "").trim();
-        if (!id) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "missing id" }) };
+        if (!id) return json({ error: "missing id" }, 400);
         const rec = await store.get(id, { type: "json" });
-        if (!rec) return { statusCode: 404, headers: cors, body: JSON.stringify({ error: "not found" }) };
-        const dec = body.decision === "approved" ? "approved" : body.decision === "denied" ? "denied" : null;
-        if (!dec) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "bad decision" }) };
+        if (!rec) return json({ error: "not found" }, 404);
+        const dec =
+          body.decision === "approved"
+            ? "approved"
+            : body.decision === "denied"
+            ? "denied"
+            : null;
+        if (!dec) return json({ error: "bad decision" }, 400);
         rec.decision = dec;
         rec.comment = String(body.comment || "").slice(0, 2000);
         rec.reviewer = String(body.reviewer || "").slice(0, 120);
         rec.reviewedAt = Date.now();
         await store.setJSON(id, rec);
-        return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true }) };
+        return json({ ok: true });
       }
 
-      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "unknown action" }) };
+      return json({ error: "unknown action" }, 400);
     }
 
-    return { statusCode: 405, headers: cors, body: JSON.stringify({ error: "method not allowed" }) };
-  } catch (e) {
-    return { statusCode: 500, headers: cors, body: JSON.stringify({ error: String((e && e.message) || e) }) };
+    return json({ error: "method not allowed" }, 405);
+  } catch (err) {
+    console.error("Handler error:", err);
+    return json({ error: String((err && err.message) || err) }, 500);
   }
-};
+}
