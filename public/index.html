@@ -758,8 +758,10 @@ function readLibraryFiles(fileList){
   const files = Array.from(fileList||[]).filter(f=>f.type.startsWith("image/"));
   if(!files.length) return;
   Promise.all(files.map(f=>compressImage(f, 1080, 0.8))).then(results=>{
-    results.forEach(src=>state.library.unshift({ id:"lib_"+uid()+"_"+Math.random().toString(36).slice(2,6), src:src }));
+    const added = results.map(src=>({ id:"lib_"+uid()+"_"+Math.random().toString(36).slice(2,6), src:src }));
+    added.forEach(it=>state.library.unshift(it));
     saveState(); renderLibrary();
+    if(state.serverMode) pushLibAdd(added);
   });
 }
 
@@ -783,6 +785,7 @@ function deleteSelectedLibrary(){
   state.library = state.library.filter(x=>!set.has(x.id));
   state.librarySel = {};
   saveState(); renderLibrary();
+  if(state.serverMode) pushLibDelete(ids);
 }
 
 function toggleSelectAllLibrary(){
@@ -809,7 +812,7 @@ document.getElementById("libBody").onclick = e=>{
   const del = e.target.closest("[data-libdel]");
   if(del){ e.stopPropagation(); const id=del.dataset.libdel;
     if(!confirm("Delete this photo from the library?")) return;
-    state.library = state.library.filter(x=>x.id!==id); delete state.librarySel[id]; saveState(); renderLibrary(); return; }
+    state.library = state.library.filter(x=>x.id!==id); delete state.librarySel[id]; saveState(); renderLibrary(); if(state.serverMode) pushLibDelete([id]); return; }
   const item = e.target.closest("[data-lib]"); if(!item) return;
   const id = item.dataset.lib; state.librarySel[id] = !state.librarySel[id]; renderLibrary();
 };
@@ -951,6 +954,16 @@ function adoptServerPosts(posts){
   state.posts = (Array.isArray(posts)?posts:[]).map(normalizePost);
   renderStats(); renderFilters(); renderBoard();
 }
+function adoptServerLibrary(library){
+  if(!Array.isArray(library)) return;
+  state.library = library.map(it=>({ id:String(it.id), src:it.src }));
+  const have = new Set(state.library.map(x=>x.id));
+  Object.keys(state.librarySel).forEach(k=>{ if(!have.has(k)) delete state.librarySel[k]; });
+  try{ localStorage.setItem("mc_library", JSON.stringify(state.library)); }catch(e){}
+  renderLibrary();
+}
+function pushLibAdd(items){ return pushBoard("libAdd",{items}); }
+function pushLibDelete(ids){ return pushBoard("libDelete",{ids:ids.map(String)}); }
 async function boardList(force){
   try{
     const r = await fetch(BOARD_API + "?rev=" + (force ? "-1" : state.boardRev));
@@ -960,6 +973,7 @@ async function boardList(force){
     if(d.changed===false){ setSync("live"); return {changed:false}; }
     state.boardRev = d.rev;
     adoptServerPosts(d.posts);
+    if(d.library) adoptServerLibrary(d.library);
     setSync("live");
     return {changed:true};
   }catch(e){ setSync("error"); return {error:true}; }
@@ -971,7 +985,7 @@ async function pushBoard(action, payload){
       body:JSON.stringify(Object.assign({action}, payload))});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d = await r.json();
-    if(d && typeof d.rev!=="undefined"){ state.boardRev=d.rev; if(d.posts) adoptServerPosts(d.posts); }
+    if(d && typeof d.rev!=="undefined"){ state.boardRev=d.rev; if(d.posts) adoptServerPosts(d.posts); if(d.library) adoptServerLibrary(d.library); }
     setSync("live");
   }catch(e){ setSync("error"); }
 }
@@ -981,10 +995,10 @@ function pushDelete(id){ return pushBoard("delete",{id:String(id)}); }
 async function seedBoard(){
   try{
     const r = await fetch(BOARD_API,{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"seed", posts:state.posts.map(serializePost)})});
+      body:JSON.stringify({action:"seed", posts:state.posts.map(serializePost), library:state.library})});
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d = await r.json();
-    state.boardRev = d.rev; adoptServerPosts(d.posts);
+    state.boardRev = d.rev; adoptServerPosts(d.posts); if(d.library) adoptServerLibrary(d.library);
   }catch(e){ setSync("error"); }
 }
 let pollTimer=null, pollCount=0;
@@ -999,10 +1013,17 @@ function startPolling(){
 }
 async function initServerBoard(){
   setSync("connecting");
+  const localLib = (state.library||[]).slice();
   const res = await boardList(true);
   if(res.error){ setSync("error"); /* retry shortly */ setTimeout(initServerBoard, 4000); return; }
   state.serverMode = true;
   if(res.empty){ await seedBoard(); }      /* first run: publish the starter board */
+  if((!state.library || state.library.length===0) && localLib.length){
+    state.library = localLib;
+    try{ localStorage.setItem("mc_library", JSON.stringify(state.library)); }catch(e){}
+    renderLibrary();
+    await pushLibAdd(localLib);
+  }
   setSync("live");
   startPolling();
 }
